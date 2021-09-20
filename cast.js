@@ -11,14 +11,14 @@ class Castjs {
     constructor(opt = {}) {
         // valid join policies
         var joinpolicies = [
-            'tab_and_origin_scoped',
-            'origin_scoped',
-            'page_scoped'
+            chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED,
+            chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+            chrome.cast.AutoJoinPolicy.PAGE_SCOPED
         ];
 
         // only allow valid join policy
         if (!opt.joinpolicies || joinpolicies.indexOf(opt.joinpolicy) === -1) {
-            opt.joinpolicy = 'tab_and_origin_scoped';
+            opt.joinpolicy = chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED;
         }
 
         // set default receiver ID if none provided
