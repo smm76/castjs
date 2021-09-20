@@ -30,6 +30,7 @@ class Castjs {
         this._events     = {}
         this._player     = null;
         this._controller = null;
+        this._mediaSession = null;
 
         // public variables
         this.version        = 'v4.1.2'
@@ -142,7 +143,7 @@ class Castjs {
             }
             // Get the active subtitle
             var active = cast.framework.CastContext.getInstance().getCurrentSession().getSessionObj().media[0].activeTrackIds;
-            if (active.length && this.subtitles[active[0]]) {
+            if (active && active.length && this.subtitles[active[0]]) {
                 this.subtitles[active[0]].active = true;
             }
         })
@@ -201,9 +202,13 @@ class Castjs {
         this.state = this._player.playerState.toLowerCase();
         switch(this.state) {
             case 'idle':
-                this.state = 'ended';
                 this.trigger('statechange');
-                this.trigger('end');
+                const idleReason = this._mediaSession? this._mediaSession.idleReason || "" : ""
+                // don't trigger end if cast was interrupted. new media was loaded
+                if(idleReason !== chrome.cast.media.IdleReason.INTERRUPTED){
+                    this.state = 'ended';
+                    this.trigger('end');
+                }
                 return this
             case 'buffering':
                 this.time           = Math.round(this._player.currentTime, 1);
@@ -345,6 +350,7 @@ class Castjs {
                 cast.framework.CastContext.getInstance().getCurrentSession().loadMedia(request).then(() => {
                     // Update device name
                     this.device = cast.framework.CastContext.getInstance().getCurrentSession().getCastDevice().friendlyName || this.device
+                    this._mediaSession = cast.framework.CastContext.getInstance().getCurrentSession().getMediaSession()
                     return this;
                 }, (err) => {
                     return this.trigger('error', err);
@@ -418,6 +424,8 @@ class Castjs {
     disconnect() {
         cast.framework.CastContext.getInstance().endCurrentSession(true);
         this._controller.stop();
+
+        this._mediaSession = null;
 
         // application variables
         this.connected  = false;
