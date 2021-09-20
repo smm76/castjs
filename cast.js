@@ -272,76 +272,88 @@ class Castjs {
                 this[key] = metadata[key];
             }
         }
-        // Time to request a session!
-        cast.framework.CastContext.getInstance().requestSession().then(() => {
-            if (!cast.framework.CastContext.getInstance().getCurrentSession()) {
-                return this.trigger('error', 'Could not connect with the cast device');
-            }
-            // Create media cast object
-            var mediaInfo = new chrome.cast.media.MediaInfo(this.src);
-            mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
 
-            // This part is the reason why people love this library <3
-            if (this.subtitles.length) {
-                // I'm using the Netflix subtitle styling
-                // chrome.cast.media.TextTrackFontGenericFamily.CASUAL
-                // chrome.cast.media.TextTrackEdgeType.DROP_SHADOW
-                mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
-                mediaInfo.textTrackStyle.backgroundColor = '#00000000';
-                mediaInfo.textTrackStyle.edgeColor       = '#00000016';
-                mediaInfo.textTrackStyle.edgeType        = 'DROP_SHADOW';
-                mediaInfo.textTrackStyle.fontFamily      = 'CASUAL';
-                mediaInfo.textTrackStyle.fontScale       = 1.0;
-                mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
-
-                var tracks = [];
-                for (var i in this.subtitles) {
-                    // chrome.cast.media.TrackType.TEXT
-                    // chrome.cast.media.TextTrackType.CAPTIONS
-                    var track =  new chrome.cast.media.Track(i, 'TEXT');
-                    track.name =             this.subtitles[i].label;
-                    track.subtype =          'CAPTIONS';
-                    track.trackContentId =   this.subtitles[i].src;
-                    track.trackContentType = 'text/vtt';
-                    // This bug made me question life for a while
-                    track.trackId = parseInt(i);
-                    tracks.push(track);
+        
+        if(!cast.framework.CastContext.getInstance().getCurrentSession()){
+            // Time to request a session!
+            cast.framework.CastContext.getInstance().requestSession().then(() => _load.apply(this), (err) => {
+                if (err !== 'cancel') {
+                    this.trigger('error', err);
                 }
-                mediaInfo.tracks = tracks;
-            }
-            // Let's prepare the metadata
-            mediaInfo.metadata.images =   [new chrome.cast.Image(this.poster)];
-            mediaInfo.metadata.title =    this.title;
-            mediaInfo.metadata.subtitle = this.description;
-            // Prepare the actual request
-            var request = new chrome.cast.media.LoadRequest(mediaInfo);
-            // Didn't really test this currenttime thingy, dont forget
-            request.currentTime = this.time;
-            request.autoplay = !this.paused;
-            // If multiple subtitles, use the active: true one
-            if (this.subtitles.length) {
-                for (var i in this.subtitles) {
-                    if (this.subtitles[i].active) {
-                        request.activeTrackIds = [parseInt(i)];
-                        break;
+                return this;
+            });
+        }else{
+            _load.apply(this)
+        }
+
+        function _load(){
+            {
+                if (!cast.framework.CastContext.getInstance().getCurrentSession()) {
+                    return this.trigger('error', 'Could not connect with the cast device');
+                }
+                // Create media cast object
+                var mediaInfo = new chrome.cast.media.MediaInfo(this.src);
+                mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+    
+                // This part is the reason why people love this library <3
+                if (this.subtitles.length) {
+                    // I'm using the Netflix subtitle styling
+                    // chrome.cast.media.TextTrackFontGenericFamily.CASUAL
+                    // chrome.cast.media.TextTrackEdgeType.DROP_SHADOW
+                    mediaInfo.textTrackStyle = new chrome.cast.media.TextTrackStyle();
+                    mediaInfo.textTrackStyle.backgroundColor = '#00000000';
+                    mediaInfo.textTrackStyle.edgeColor       = '#00000016';
+                    mediaInfo.textTrackStyle.edgeType        = 'DROP_SHADOW';
+                    mediaInfo.textTrackStyle.fontFamily      = 'CASUAL';
+                    mediaInfo.textTrackStyle.fontScale       = 1.0;
+                    mediaInfo.textTrackStyle.foregroundColor = '#FFFFFF';
+    
+                    var tracks = [];
+                    for (var i in this.subtitles) {
+                        // chrome.cast.media.TrackType.TEXT
+                        // chrome.cast.media.TextTrackType.CAPTIONS
+                        var track =  new chrome.cast.media.Track(i, 'TEXT');
+                        track.name =             this.subtitles[i].label;
+                        track.subtype =          'CAPTIONS';
+                        track.trackContentId =   this.subtitles[i].src;
+                        track.trackContentType = 'text/vtt';
+                        // This bug made me question life for a while
+                        track.trackId = parseInt(i);
+                        tracks.push(track);
+                    }
+                    mediaInfo.tracks = tracks;
+                }
+                // Let's prepare the metadata
+                mediaInfo.metadata.images =   [new chrome.cast.Image(this.poster)];
+                mediaInfo.metadata.title =    this.title;
+                mediaInfo.metadata.subtitle = this.description;
+                // Prepare the actual request
+                var request = new chrome.cast.media.LoadRequest(mediaInfo);
+                // Didn't really test this currenttime thingy, dont forget
+                request.currentTime = this.time;
+                request.autoplay = !this.paused;
+                // If multiple subtitles, use the active: true one
+                if (this.subtitles.length) {
+                    for (var i in this.subtitles) {
+                        if (this.subtitles[i].active) {
+                            request.activeTrackIds = [parseInt(i)];
+                            break;
+                        }
                     }
                 }
+                // Here we go!
+                cast.framework.CastContext.getInstance().getCurrentSession().loadMedia(request).then(() => {
+                    // Update device name
+                    this.device = cast.framework.CastContext.getInstance().getCurrentSession().getCastDevice().friendlyName || this.device
+                    return this;
+                }, (err) => {
+                    return this.trigger('error', err);
+                });
             }
-            // Here we go!
-            cast.framework.CastContext.getInstance().getCurrentSession().loadMedia(request).then(() => {
-                // Update device name
-                this.device = cast.framework.CastContext.getInstance().getCurrentSession().getCastDevice().friendlyName || this.device
-                return this;
-            }, (err) => {
-                return this.trigger('error', err);
-            });
-        }, (err) => {
-            if (err !== 'cancel') {
-                this.trigger('error', err);
-            }
-            return this;
-        });
+        }
+
     }
+
     seek(seconds, isPercentage) {
         // if seek(15, true) we assume 15 is percentage instead of seconds
         if (isPercentage) {
