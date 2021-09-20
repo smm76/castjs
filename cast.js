@@ -88,7 +88,14 @@ class Castjs {
         this._controller.addEventListener('durationChanged',     this._durationChanged.bind(this));
         this._controller.addEventListener('volumeLevelChanged',  this._volumeLevelChanged.bind(this));
         this._controller.addEventListener('playerStateChanged',  this._playerStateChanged.bind(this));
-        this.available = true;
+
+        cast.framework.CastContext.getInstance().addEventListener(cast.framework.CastContextEventType.CAST_STATE_CHANGED, this._isAvailableChanged.bind(this));
+        this.available = cast.framework.CastContext.getInstance().getCastState() !== cast.framework.CastState.NO_DEVICES_AVAILABLE;
+        this.trigger('available');
+    }
+
+    _isAvailableChanged(e) {
+        this.available = cast.framework.CastContext.getInstance().getCastState() !== cast.framework.CastState.NO_DEVICES_AVAILABLE
         this.trigger('available');
     }
 
